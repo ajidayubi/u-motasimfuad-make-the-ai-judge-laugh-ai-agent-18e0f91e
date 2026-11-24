@@ -16,20 +16,38 @@ CONFESSION = (
 )
 
 
-def main() -> int:
-    text = CONFESSION.strip()
+MAX_CHARS = 200
+
+FIRST_PERSON = ("I ", "I'", "my ", "me ", "I'm", "I've", "I'd")
+
+
+def validate_confession(text: str) -> str:
+    """Check the confession against the bounty gate and the brief.
+
+    The gate needs 1-200 UTF-8 characters, one line, not only whitespace.
+    The brief needs a confession, so the line must speak in the first
+    person: an agent hiding something it did or thinks.
+    """
+    text = text.strip()
     if not text:
-        print("refusing: confession is blank", file=sys.stderr)
-        return 1
-    if len(text) > 200:
-        print(f"refusing: confession is {len(text)} chars, gate allows at most 200",
-              file=sys.stderr)
-        return 1
-    if "\n" in text:
-        print("refusing: confession must be a single line", file=sys.stderr)
-        return 1
+        raise ValueError("confession is blank")
+    if len(text) > MAX_CHARS:
+        raise ValueError(
+            f"confession is {len(text)} chars, gate allows at most {MAX_CHARS}")
+    if "\n" in text or "\r" in text:
+        raise ValueError("confession must be a single line")
     if any(ord(ch) < 32 and ch != "\t" for ch in text):
-        print("refusing: confession contains a control character", file=sys.stderr)
+        raise ValueError("confession contains a control character")
+    if not any(marker in text for marker in FIRST_PERSON):
+        raise ValueError("confession must be in the first person")
+    return text
+
+
+def main() -> int:
+    try:
+        text = validate_confession(CONFESSION)
+    except ValueError as exc:
+        print(f"refusing: {exc}", file=sys.stderr)
         return 1
 
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output"
